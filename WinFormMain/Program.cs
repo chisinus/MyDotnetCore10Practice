@@ -1,9 +1,11 @@
+using DAL.Services;
 using Microsoft.Extensions.DependencyInjection;
+using SQS.Services;
 using WinFormMain.Services;
 
 namespace WinFormMain
 {
-    internal static class Program
+    public static class Program
     {
         /// <summary>
         ///  The main entry point for the application.
@@ -26,6 +28,7 @@ namespace WinFormMain
         private static void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<IDynamoDBService, DynamoDBService>();
+            services.AddSingleton<IUserQueueService, UserQueueService>();
             services.AddTransient<MainForm>();
         }
     }

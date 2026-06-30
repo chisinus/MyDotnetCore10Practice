@@ -1,72 +1,106 @@
-using WinFormMain.Models;
+using DAL.Services;
+using SQS.Services;
 using WinFormMain.Services;
-using static WinFormMain.Models.Constants;
+using static Base.Models.Constants;
 
 namespace WinFormMain
 {
     public partial class MainForm : Form
     {
-        private readonly IDynamoDBService _dynamoDBService;
-        private readonly Random _random = new();
-        private List<User> localUsers = new();
+        private readonly DynamoDBPresenter _presenter;
+        private readonly SQSPresenter _sqsPresenter;
 
-        public MainForm(IDynamoDBService dynamoDBService)
+        public MainForm(IDynamoDBService dynamoDBService, IUserQueueService userQueueService)
         {
             InitializeComponent();
-            _dynamoDBService = dynamoDBService;
+            _presenter = new DynamoDBPresenter(dynamoDBService, LogResult);
+            _sqsPresenter = new SQSPresenter(userQueueService, LogResult);
 
             // Set the default selected index for the action combobox to Add
-            if (cbDynamoDBActions.Items.Count > 0)
+            if (cbUserActions.Items.Count > 0)
             {
-                cbDynamoDBActions.SelectedIndex = 0;
+                cbUserActions.SelectedIndex = 0;
             }
         }
 
-        private async void btnDynamoDBGo_Click(object sender, EventArgs e)
+        private void LogResult(string message)
         {
-            if (cbDynamoDBActions.SelectedIndex == -1)
+            richTextBox1.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+            richTextBox1.ScrollToCaret();
+        }
+
+        #region Common event handler
+        private async void cbUserActions_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cbUserActions.SelectedIndex == -1)
             {
                 LogResult("Please select a DynamoDB action first.");
                 return;
             }
 
-            var action = (DynamoDBActions)cbDynamoDBActions.SelectedIndex;
+            UserActions action = (UserActions)cbUserActions.SelectedIndex;
+            try
+            {
+                cbUsers.Items.Clear();
+                if (action == UserActions.Update || action == UserActions.Delete)
+                {
+                    var users = await _presenter.LoadAllUsersAsync();
+                    LogResult($"Loaded {users.Count} users for Update/Delete.");
+
+                    foreach (var user in users)
+                    {
+                        cbUsers.Items.Add(user.Id.ToString());
+                    }
+                    if (cbUsers.Items.Count > 0)
+                    {
+                        cbUsers.SelectedIndex = 0;
+                    }
+                    cbUsers.Enabled = true;
+                    btnDynamoDBGo.Enabled = cbUsers.Items.Count > 0;
+                }
+                else if (action == UserActions.Search)
+                {
+                    cbUsers.Enabled = false;
+                    btnDynamoDBGo.Enabled = true;
+                }
+                else
+                {
+                    cbUsers.Enabled = false;
+                    _presenter.ClearUsers();
+                    btnDynamoDBGo.Enabled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogResult($"Error loading users for index change: {ex.Message}");
+            }
+        }
+        #endregion
+
+        #region Dynamodb event handler
+        private async void btnDynamoDBGo_Click(object sender, EventArgs e)
+        {
+            if (cbUserActions.SelectedIndex == -1)
+            {
+                LogResult("Please select a DynamoDB action first.");
+                return;
+            }
+
+            var action = (UserActions)cbUserActions.SelectedIndex;
             LogResult($"Executing DynamoDB Action: {action}...");
 
             try
             {
                 switch (action)
                 {
-                    case DynamoDBActions.Add:
-                        var newUser = new User
-                        {
-                            Id = Guid.NewGuid(),
-                            Name = "John Doe " + _random.Next(100, 999),
-                            Email = $"johndoe{_random.Next(100, 999)}@example.com",
-                            Password = "Password123!",
-                            CreatedAt = DateTime.Now,
-                            UpdatedAt = DateTime.Now
-                        };
-                        await _dynamoDBService.AddAsync("tblUsers", newUser);
-                        localUsers.Add(newUser);
-                        LogResult($"[SUCCESS] Added user {newUser.Id} (Name: {newUser.Name}) to local DynamoDB.");
+                    case UserActions.Add:
+                        await _presenter.AddUserAsync();
                         break;
 
-                    case DynamoDBActions.Update:
+                    case UserActions.Update:
                         if (cbUsers.SelectedIndex != -1 && Guid.TryParse(cbUsers.SelectedItem?.ToString(), out Guid updateId))
                         {
-                            var userToUpdate = localUsers.FirstOrDefault(u => u.Id == updateId);
-                            if (userToUpdate != null)
-                            {
-                                userToUpdate.Name = "Updated Name " + _random.Next(10, 99);
-                                userToUpdate.UpdatedAt = DateTime.Now;
-                                await _dynamoDBService.UpdateAsync("tblUsers", userToUpdate);
-                                LogResult($"[SUCCESS] Updated user {userToUpdate.Id} to name: {userToUpdate.Name}");
-                            }
-                            else
-                            {
-                                LogResult($"[ERROR] Selected user {updateId} not found locally.");
-                            }
+                            await _presenter.UpdateUserAsync(updateId);
                         }
                         else
                         {
@@ -74,16 +108,11 @@ namespace WinFormMain
                         }
                         break;
 
-                    case DynamoDBActions.Delete:
+                    case UserActions.Delete:
                         if (cbUsers.SelectedIndex != -1 && Guid.TryParse(cbUsers.SelectedItem?.ToString(), out Guid deleteId))
                         {
-                            await _dynamoDBService.DeleteAsync("tblUsers", deleteId);
-                            var userToRemove = localUsers.FirstOrDefault(u => u.Id == deleteId);
-                            if (userToRemove != null)
-                            {
-                                localUsers.Remove(userToRemove);
-                            }
-                            
+                            await _presenter.DeleteUserAsync(deleteId);
+
                             cbUsers.Items.RemoveAt(cbUsers.SelectedIndex);
                             if (cbUsers.Items.Count > 0)
                             {
@@ -93,7 +122,6 @@ namespace WinFormMain
                             {
                                 cbUsers.SelectedIndex = -1;
                             }
-                            LogResult($"[SUCCESS] Deleted user {deleteId}");
                         }
                         else
                         {
@@ -101,14 +129,8 @@ namespace WinFormMain
                         }
                         break;
 
-                    case DynamoDBActions.Search:
-                        var searchResults = await _dynamoDBService.SearchAsync<User>("tblUsers", "Name", "Name");
-                        localUsers = searchResults.ToList();
-                        LogResult($"[SUCCESS] Search returned {localUsers.Count} user(s) matching Name='Name'.");
-                        foreach (var user in localUsers)
-                        {
-                            LogResult($"  - ID: {user.Id}, Name: {user.Name}, Email: {user.Email}");
-                        }
+                    case UserActions.Search:
+                        await _presenter.SearchUsersAsync();
                         break;
 
                     default:
@@ -121,59 +143,68 @@ namespace WinFormMain
             }
         }
 
-        private void LogResult(string message)
-        {
-            richTextBox1.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
-            richTextBox1.ScrollToCaret();
-        }
 
-        private async void cbDynamoDBActions_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (cbDynamoDBActions.SelectedIndex == -1)
-            {
-                LogResult("Please select a DynamoDB action first.");
-                return;
-            }
+        #endregion
 
-            DynamoDBActions action = (DynamoDBActions)cbDynamoDBActions.SelectedIndex;
+        #region SQS event handler
+        private async void btnSQSSubmit_Click(object sender, EventArgs e)
+        {
+            var action = (UserActions)cbUserActions.SelectedIndex;
+            LogResult($"Executing User Action: {action}...");
+
             try
             {
-                cbUsers.Items.Clear();
-                if (action == DynamoDBActions.Update || action == DynamoDBActions.Delete)
+                switch (action)
                 {
-                    var results = await _dynamoDBService.SearchAsync<User>("tblUsers", "", "");
-                    localUsers = results.ToList();
-                    LogResult($"Loaded {localUsers.Count} users for Update/Delete.");
+                    case UserActions.Add:
+                        await _sqsPresenter.AddUserAsync();
+                        break;
 
-                    foreach (var user in localUsers)
-                    {
-                        cbUsers.Items.Add(user.Id.ToString());
-                    }
-                    if (cbUsers.Items.Count > 0)
-                    {
-                        cbUsers.SelectedIndex = 0;
-                    }
-                    cbUsers.Enabled = true;
-                    btnDynamoDBGo.Enabled = cbUsers.Items.Count > 0;
-                }
-                else if (action == DynamoDBActions.Search)
-                {
-                    //var results = await _dynamoDBService.SearchAsync<User>("tblUsers", "Name", "Name");
-                    //localUsers = results.ToList();
-                    cbUsers.Enabled = false;
-                    btnDynamoDBGo.Enabled = true;
-                }
-                else
-                {
-                    cbUsers.Enabled = false;
-                    localUsers.Clear();
-                    btnDynamoDBGo.Enabled = true;
+                    case UserActions.Update:
+                        if (cbUsers.SelectedIndex != -1 && Guid.TryParse(cbUsers.SelectedItem?.ToString(), out Guid updateId))
+                        {
+                            await _sqsPresenter.UpdateUserAsync(updateId);
+                        }
+                        else
+                        {
+                            LogResult("No user selected or loaded for update. Select Update/Delete to load users.");
+                        }
+                        break;
+
+                    case UserActions.Delete:
+                        if (cbUsers.SelectedIndex != -1 && Guid.TryParse(cbUsers.SelectedItem?.ToString(), out Guid deleteId))
+                        {
+                            await _sqsPresenter.DeleteUserAsync(deleteId);
+
+                            cbUsers.Items.RemoveAt(cbUsers.SelectedIndex);
+                            if (cbUsers.Items.Count > 0)
+                            {
+                                cbUsers.SelectedIndex = 0;
+                            }
+                            else
+                            {
+                                cbUsers.SelectedIndex = -1;
+                            }
+                        }
+                        else
+                        {
+                            LogResult("No user selected or loaded for deletion. Select Update/Delete to load users.");
+                        }
+                        break;
+
+                    case UserActions.Search:
+                        await _sqsPresenter.SearchUsersAsync();
+                        break;
+
+                    default:
+                        throw new NotImplementedException();
                 }
             }
             catch (Exception ex)
             {
-                LogResult($"Error loading users for index change: {ex.Message}");
+                LogResult($"Error executing action: {ex.Message}");
             }
         }
+        #endregion
     }
 }

@@ -1,3 +1,7 @@
 <Solution>
+  <Project Path="Base/Base.csproj" Id="7f4af56e-7131-4a5d-9c46-c551adb923e9" />
+  <Project Path="DAL/DAL.csproj" Id="5b2d94a5-c09f-4265-a27c-8a6f408a23e7" />
+  <Project Path="Lambda/src/LambdaUserProcessor/Lambda.csproj" Id="2e84669c-9225-4aca-8932-8dfc7d262973" />
+  <Project Path="SQS/SQS.csproj" Id="cfbaddfa-9c64-4171-b85f-38a8f1b8d193" />
   <Project Path="WinFormMain/WinFormMain.csproj" />
 </Solution>

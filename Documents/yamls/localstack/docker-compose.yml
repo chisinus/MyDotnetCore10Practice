@@ -1,0 +1,23 @@
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      - "4566:4566"        # Main LocalStack edge port
+      - "4571:4571"        # Lambda API (optional)
+    environment:
+      - SERVICES=sqs,sns,lambda,dynamodb,s3,apigateway,logs,cloudwatch
+      - DEBUG=1
+      - LAMBDA_EXECUTOR=docker
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - AWS_DEFAULT_REGION=us-east-1
+      - LOCALSTACK_AUTH_TOKEN=ls-furU6385-RADa-RuDu-WAmo-cEhE43075bdc
+    volumes:
+      - "localstack-data:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+volumes:
+  localstack-data:
+
+
+

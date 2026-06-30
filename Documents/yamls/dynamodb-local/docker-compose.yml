@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  dynamodb:
+    image: amazon/dynamodb-local
+    ports:
+      - "8000:8000"
+    # 1. Override the default command to use the database path
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
+    # 2. Mount the local folder to the container's data directory
+    volumes:
+      - C:/practice/dynamodb-data:/home/dynamodblocal/data

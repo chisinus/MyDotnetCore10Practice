@@ -29,11 +29,12 @@
         private void InitializeComponent()
         {
             label1 = new Label();
-            cbDynamoDBActions = new ComboBox();
+            cbUserActions = new ComboBox();
             richTextBox1 = new RichTextBox();
             label2 = new Label();
             btnDynamoDBGo = new Button();
             cbUsers = new ComboBox();
+            btnSQSSubmit = new Button();
             SuspendLayout();
             // 
             // label1
@@ -41,20 +42,20 @@
             label1.AutoSize = true;
             label1.Location = new Point(19, 31);
             label1.Name = "label1";
-            label1.Size = new Size(67, 15);
+            label1.Size = new Size(30, 15);
             label1.TabIndex = 0;
-            label1.Text = "DynamoDB";
+            label1.Text = "User";
             // 
-            // cbDynamoDBActions
+            // cbUserActions
             // 
-            cbDynamoDBActions.FormattingEnabled = true;
-            cbDynamoDBActions.Items.AddRange(new object[] { "Add", "Update", "Delete", "Search" });
-            cbDynamoDBActions.Location = new Point(92, 27);
-            cbDynamoDBActions.Name = "cbDynamoDBActions";
-            cbDynamoDBActions.Size = new Size(174, 23);
-            cbDynamoDBActions.TabIndex = 2;
-            cbDynamoDBActions.Text = "Add";
-            cbDynamoDBActions.SelectedIndexChanged += cbDynamoDBActions_SelectedIndexChanged;
+            cbUserActions.FormattingEnabled = true;
+            cbUserActions.Items.AddRange(new object[] { "Add", "Update", "Delete", "Search" });
+            cbUserActions.Location = new Point(92, 27);
+            cbUserActions.Name = "cbUserActions";
+            cbUserActions.Size = new Size(174, 23);
+            cbUserActions.TabIndex = 2;
+            cbUserActions.Text = "Add";
+            cbUserActions.SelectedIndexChanged += cbUserActions_SelectedIndexChanged;
             // 
             // richTextBox1
             // 
@@ -92,16 +93,27 @@
             cbUsers.Size = new Size(300, 23);
             cbUsers.TabIndex = 6;
             // 
+            // btnSQSSubmit
+            // 
+            btnSQSSubmit.Location = new Point(781, 27);
+            btnSQSSubmit.Name = "btnSQSSubmit";
+            btnSQSSubmit.Size = new Size(197, 23);
+            btnSQSSubmit.TabIndex = 7;
+            btnSQSSubmit.Text = "SQS Submit";
+            btnSQSSubmit.UseVisualStyleBackColor = true;
+            btnSQSSubmit.Click += btnSQSSubmit_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1220, 748);
+            Controls.Add(btnSQSSubmit);
             Controls.Add(cbUsers);
             Controls.Add(btnDynamoDBGo);
             Controls.Add(label2);
             Controls.Add(richTextBox1);
-            Controls.Add(cbDynamoDBActions);
+            Controls.Add(cbUserActions);
             Controls.Add(label1);
             Name = "MainForm";
             Text = "Form1";
@@ -112,10 +124,11 @@
         #endregion
 
         private Label label1;
-        private ComboBox cbDynamoDBActions;
+        private ComboBox cbUserActions;
         private RichTextBox richTextBox1;
         private Label label2;
         private Button btnDynamoDBGo;
         private ComboBox cbUsers;
+        private Button btnSQSSubmit;
     }
 }

@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace WinFormMain.Models
+namespace Base.Models
 {
-    internal class Constants
+    public static class Constants
     {
-        internal enum DynamoDBActions
+        public enum UserActions
         {
             Add,
             Update,

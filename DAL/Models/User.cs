@@ -1,6 +1,7 @@
+using System;
 using Amazon.DynamoDBv2.DataModel;
 
-namespace WinFormMain.Models
+namespace DAL.Models
 {
     [DynamoDBTable("tblUsers")]
     public class User
